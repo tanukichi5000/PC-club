@@ -278,6 +278,108 @@
         </div>
       </div>
     </section>
+<html><head></head><body><form onsubmit="sendChatData();return false">
+<table summary="送信フォーム">
+<tbody><tr><th style="width:150px">名前(10文字以内)</th><td><input type="text" name="name" value="<?=@$name?>" style="width:100%" maxlength="10" required=""></td></tr>
+<tr><th>文章(50文字以内)</th><td><input type="text" name="text" value="" style="width:100%" maxlength="50" required=""></td></tr>
+</tbody></table>
+<p><input type="submit" value="送信" class="button"></p>
+</form>
+
+<table summary="チャット">
+<tbody><tr><th style="width:150px">名前</th><th style="width:180px">投稿日時</th><th>文章</th></tr>
+</tbody><tbody id="board">
+<!--?foreach($_chat as $val){?-->
+<tr><td><!--?=htmlspecialchars($val["name"])?--></td><td><!--?=substr($val["date"],5,14)?--></td><td><!--?=htmlspecialchars($val["text"])?--></td></tr>
+<!--?}?-->
+</tbody>
+</table>
+
+<script type="text/javascript">
+
+// 名前か文章にカーソルをフォーカス
+if(document.getElementsByName("text")[0]) document.getElementsByName("text")[0].focus();
+if(document.getElementsByName("name")[0]) document.getElementsByName("name")[0].focus();
+
+// xmlHttpObjectの作成
+function createXMLHttpRequest(){
+	var xmlHttpObject = null;
+	if(window.XMLHttpRequest){
+		xmlHttpObject = new XMLHttpRequest();
+	}else if(window.ActiveXObject){
+		try{
+			xmlHttpObject = new ActiveXObject("Msxml2.XMLHTTP");
+		}catch(e){
+			try{
+				xmlHttpObject = new ActiveXObject("Microsoft.XMLHTTP");
+			}catch(e){
+				return null;
+			}
+		}
+	}
+	return xmlHttpObject;
+}
+
+// チャットの内容の取得
+function loadChatData(){
+	xmlHttpObject = createXMLHttpRequest();
+	xmlHttpObject.onreadystatechange = displayHtml;
+	xmlHttpObject.open("GET","/loadChatData.php",true);
+	xmlHttpObject.send(null);
+}
+
+// 新たな書き込みがあった場合に表示する
+function displayHtml(){
+	if((xmlHttpObject.readyState == 4) && (xmlHttpObject.status == 200) && xmlHttpObject.responseText){
+		document.getElementById("board").innerHTML = xmlHttpObject.responseText + document.getElementById("board").innerHTML;
+	}
+}
+
+// チャットに書き込みをする
+function sendChatData(){
+	xmlHttpObject = createXMLHttpRequest();
+	xmlHttpObject.open("POST","/sendChatData.php",true);
+	xmlHttpObject.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
+	xmlHttpObject.send("name="+encodeURIComponent(document.getElementsByName("name")[0].value)+"&text="+encodeURIComponent(document.getElementsByName("text")[0].value));
+	document.getElementsByName("text")[0].value = "";
+	loadChatData();
+}
+
+// 2秒ごとにチャットの内容を取りに行く
+setInterval('loadChatData()',2000);
+
+</script>
+
+
+loadChatData.php
+<!--?
+if(!isset($_SESSION)) session_start();
+
+// キャッシュを取らないように
+header("Expires: Thu, 01 Dec 1994 16:00:00 GMT");
+header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT");
+header("Cache-Control: no-cache, must-revalidate");
+header("Cache-Control: post-check=0, pre-check=0",false);
+header("Pragma: no-cache");
+header("Content-type: text/html; charset=utf-8");
+
+$max_chid = isset($_SESSION["max_chid"]) ? $_SESSION["max_chid"] : 0 ;
+
+// チャットの内容の取得
+$_chat = array();
+$rst = mysql_query("select * from chat where chid --> {$max_chid} order by date desc limit 30");
+while($col=mysql_fetch_assoc($rst)) $_chat[$col["chid"]] = $col;
+mysql_free_result($rst);
+
+// 直近のID
+$_SESSION["max_chid"] = count($_chat) ? max(array_keys($_chat)) : $max_chid ;
+
+// チャットデータの書き出し
+foreach($_chat as $val){?&gt;
+<!--?=htmlspecialchars($val["name"])?--><!--?=substr($val["date"],5,14)?--><!--?=htmlspecialchars($val["text"])?-->
+<!--?}?-->
+
+</body></html>
   </body>
 
 </html>
